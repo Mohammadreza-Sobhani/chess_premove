@@ -10,7 +10,7 @@ void main() async {
 
   // 2. The square the user tapped to register a premove.
   // Example: The Black pawn at d7.
-  String tappedSquare = 'd7'; 
+  String tappedSquare = 'd7';
 
   print('Current FEN: $currentFen');
   print('Tapped Square: $tappedSquare');
@@ -19,17 +19,17 @@ void main() async {
   try {
     // 3. Smart background calculation (Zero UI blocking).
     //
-    // For the black pawn at d7, the geometric engine initially suggests 4 pseudo-legal 
+    // For the black pawn at d7, the geometric engine initially suggests 4 pseudo-legal
     // destinations: c6, d6, e6, and d5.
-    // 
-    // Because 'intelligence: true' is passed, the AI simulates all of White's possible 
-    // future moves. It realizes that the d7 pawn can never legally capture on c6 or e6 
+    //
+    // Because 'intelligence: true' is passed, the AI simulates all of White's possible
+    // future moves. It realizes that the d7 pawn can never legally capture on c6 or e6
     // in the very next turn (as White cannot place any piece on those squares in just one move).
-    // Therefore, the AI intelligently filters out c6 and e6, returning only the 
+    // Therefore, the AI intelligently filters out c6 and e6, returning only the
     // truly possible moves: [d6, d5].
     //
-    // Note: If you set 'intelligence: false', the function will bypass the AI simulation 
-    // and simply return all 4 geometric squares [c6, d6, e6, d5]. This is highly useful 
+    // Note: If you set 'intelligence: false', the function will bypass the AI simulation
+    // and simply return all 4 geometric squares [c6, d6, e6, d5]. This is highly useful
     // when you don't need strict logical validation and want to skip extra computations.
     List<String> validPremoves =
         await PremoveIntelligence.calculatePremovesAsync(
@@ -41,7 +41,8 @@ void main() async {
     print('✅ Valid premove destinations for $tappedSquare: $validPremoves');
   } catch (e) {
     if (e is InvalidPremoveTurnException) {
-      print('❌ Error: It is currently your turn! Premoves can only be registered during the opponent\'s turn.');
+      print(
+          '❌ Error: It is currently your turn! Premoves can only be registered during the opponent\'s turn.');
     } else {
       print('❌ Unexpected Error: $e');
     }

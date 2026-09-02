@@ -1,7 +1,7 @@
-import 'dart:isolate'; // 🌟 اضافه شده برای پردازش‌های پس‌زمینه
+import 'dart:isolate'; // 🌟 Added for background processing
 import 'package:chess/chess.dart' as chess_lib;
 
-/// استثنای اختصاصی برای زمانی که نوبت بازی با کاربر است اما درخواست پری‌موو دارد
+/// Custom exception thrown when a user attempts to register a premove during their own turn.
 class InvalidPremoveTurnException implements Exception {
   final String message;
   InvalidPremoveTurnException(this.message);
@@ -9,7 +9,7 @@ class InvalidPremoveTurnException implements Exception {
   String toString() => 'InvalidPremoveTurnException: $message';
 }
 
-/// کلاس نگهدارنده داده‌ها برای ارسال به داخل ایزولیت (چون فقط داده‌های پایه قابل ارسال هستند)
+/// Data holder class to pass arguments into the Isolate (as only primitive data types can be sent).
 class _PremoveIsolateData {
   final SendPort sendPort;
   final String fen;
@@ -21,18 +21,18 @@ class _PremoveIsolateData {
 }
 
 class PremoveIntelligence {
-  // 🌟 نگهداری رفرنس ایزولیت فعال برای قابلیت کشته شدن (Cancellation)
+  // 🌟 Holds the reference to the active isolate for cancellation capabilities.
   static Isolate? _activeIsolate;
 
-  /// متد ناهمگام (Async) و اصلی که رابط کاربری (UI) فراخوانی می‌کند.
-  /// این متد مدیریت Isolateها، لغو محاسبات قبلی و جلوگیری از افت فریم را بر عهده دارد.
+  /// The main asynchronous method called by the User Interface (UI).
+  /// This method manages Isolates, cancels previous calculations, and prevents frame drops.
   static Future<List<String>> calculatePremovesAsync(
     String currentFen,
     String fromSquare, {
     bool intelligence = true,
   }) async {
-    // ۱. اعتبارسنجی اولیه و فوق سریع (O(1)) در ترد اصلی
-    // تا اگر نوبت اشتباه است، اصلا ایزولیت ساخته نشود و در کسری از میلی‌ثانیه خطا پرتاب شود.
+    // 1. Initial, ultra-fast O(1) validation on the main thread.
+    // If it is the wrong turn, no Isolate is spawned, and an error is thrown in milliseconds.
     List<String> fenParts = currentFen.split(' ');
     if (fenParts.length >= 2) {
       String turn = fenParts[1];
@@ -57,18 +57,18 @@ class PremoveIntelligence {
       }
 
       if (movingPiece == null) {
-        throw ArgumentError('هیچ مهره‌ای در خانه $fromSquare وجود ندارد.');
+        throw ArgumentError('No piece found on square $fromSquare.');
       }
 
       bool isWhitePiece = movingPiece == movingPiece.toUpperCase();
       if ((isWhitePiece && turn == 'w') || (!isWhitePiece && turn == 'b')) {
         throw InvalidPremoveTurnException(
-            'اکنون نوبت شماست. پری‌موو فقط در نوبت حریف قابل ثبت است.');
+            'It is currently your turn. Premoves can only be registered during the opponent\'s turn.');
       }
     }
 
-    // ۲. توقف اضطراری (Kill): اگر پردازش قبلی هنوز در حال انجام است، آن را فوراً نابود کن!
-    // این کار از اشغال شدن پردازنده و کند شدن گوشی هنگام کلیک‌های سریع کاربر جلوگیری می‌کند.
+    // 2. Emergency Stop (Kill): If a previous calculation is still running, destroy it immediately!
+    // This prevents CPU hogging and device slowdowns during rapid user clicks.
     if (_activeIsolate != null) {
       _activeIsolate!.kill(priority: Isolate.immediate);
       _activeIsolate = null;
@@ -76,10 +76,10 @@ class PremoveIntelligence {
           '🛑 [MAIN THREAD] ⚠️ ALERT: Rapid click detected! Killing previous Isolate to prevent Race Condition & free CPU.');
     }
 
-    // ۳. ساخت پورت ارتباطی
+    // 3. Create communication port
     final receivePort = ReceivePort();
 
-    // ۴. ساخت ایزولیت جدید و ارسال به پس‌زمینه
+    // 4. Spawn a new Isolate and send it to the background
     try {
       print(
           '⚡ [MAIN THREAD] Offloading Premove calculation to Background Isolate...');
@@ -91,7 +91,7 @@ class PremoveIntelligence {
             receivePort.sendPort, currentFen, fromSquare, intelligence),
       );
 
-      // ۵. منتظر ماندن برای دریافت نتیجه از ایزولیت
+      // 5. Wait to receive the result from the Isolate
       final result = await receivePort.first as List<String>;
 
       stopwatch.stop();
@@ -100,7 +100,7 @@ class PremoveIntelligence {
 
       return result;
     } finally {
-      // ۶. پاکسازی همیشگی منابع پس از اتمام کار
+      // 6. Always clean up resources after completion
       _activeIsolate = null;
       receivePort.close();
       print(
@@ -108,7 +108,7 @@ class PremoveIntelligence {
     }
   }
 
-  /// نقطه ورود ایزولیت (این تابع کاملاً در یک ترد جداگانه اجرا می‌شود)
+  /// Isolate entry point (This function runs entirely on a separate thread)
   static void _isolateEntryPoint(_PremoveIsolateData data) {
     try {
       print(
@@ -124,7 +124,7 @@ class PremoveIntelligence {
     }
   }
 
-  /// هسته اصلی محاسبات (شامل الگوریتم هندسی + هوش مصنوعی احتمالات)
+  /// Core calculation engine (Includes geometric algorithm + probability AI)
   static List<String> _coreCalculate(
       String currentFen, String fromSquare, bool intelligence) {
     List<String> fenParts = currentFen.split(' ');
@@ -273,8 +273,8 @@ class PremoveIntelligence {
     return false;
   }
 
-  /// این تابع لیست حرکات هندسی و احتمالی پری‌موو را می‌گیرد
-  /// و فقط آن‌هایی را برمی‌گرداند که حداقل در یک سناریو (یک حرکت ممکن حریف) از نظر قانونی قابل اجرا باشند.
+  /// This function takes the list of geometric pseudo-legal premove candidates
+  /// and returns only those that are legally playable in at least one scenario (one possible opponent move).
   static List<String> filterPossiblePremoves(
     String currentFen,
     String fromSquare,
@@ -289,53 +289,53 @@ class PremoveIntelligence {
     List<String> trulyPossibleMoves = [];
 
     try {
-      // ساخت یک نمونه شطرنج از وضعیت فعلی (نوبت حریف است)
+      // Create a chess instance from the current state (It is the opponent's turn)
       var chess = chess_lib.Chess.fromFEN(currentFen);
 
-      // استخراج تمام حرکات قانونی حریف در این لحظه به صورت رشته SAN (مثل e4, Nf3)
-      // استفاده از کستینگ امن به List<String> برای جلوگیری از خطاهای ناشناخته کتابخانه
+      // Extract all legal opponent moves at this moment as SAN strings (e.g., e4, Nf3)
+      // Using safe casting to List<String> to prevent unknown library errors
       List<String> opponentMoves = List<String>.from(chess.moves());
       print(
           '[AI-INFO] Total opponent moves possible in this turn: ${opponentMoves.length}');
 
-      // بررسی هر کدام از خانه‌های مقصدی که الگوریتم هندسی ما در مرحله قبل پیدا کرده است
+      // Evaluate each target square found by our geometric algorithm in the previous step
       for (String target in pseudoLegalDestinations) {
         bool isPossibleInAnyScenario = false;
 
-        // برای این خانه مقصد، تمام آینده‌های احتمالی (حرکات حریف) را شبیه‌سازی می‌کنیم
+        // For this target square, simulate all possible futures (opponent moves)
         for (String oppMove in opponentMoves) {
-          // یک تخته مجازی برای شبیه‌سازی آینده می‌سازیم تا FEN اصلی خراب نشود
+          // Create a virtual board to simulate the future so the original FEN remains intact
           var simulationBoard = chess_lib.Chess.fromFEN(currentFen);
 
-          // ۱. حریف حرکتش را انجام می‌دهد (شبیه‌سازی آینده)
+          // 1. The opponent makes their move (Future simulation)
           bool oppMoveSuccess = simulationBoard.move(oppMove);
           if (!oppMoveSuccess) {
             print('[AI-WARNING] Failed to simulate opponent move: $oppMove');
             continue;
           }
 
-          // ۲. حالا نوبت ماست. آیا در این وضعیتِ جدید، پری‌موو ما قانونی و ممکن است؟
+          // 2. Now it's our turn. Is our premove legal and possible in this new state?
           bool isValidPremove = false;
           try {
             isValidPremove = simulationBoard.move({
               'from': fromSquare,
               'to': target,
-              'promotion': 'q', // ترفیع پیش‌فرض برای تست
+              'promotion': 'q', // Default promotion for testing purposes
             });
           } catch (e) {
             isValidPremove = false;
           }
 
-          // اگر حتی در یک حرکتِ حریف، این پری‌موو ممکن باشد، یعنی شدنی است!
+          // If this premove is possible in even ONE opponent move, it means it's achievable!
           if (isValidPremove) {
             isPossibleInAnyScenario = true;
             print(
                 '[AI-MATCH] Target $target IS POSSIBLE if opponent plays: $oppMove');
-            break; // پیدا کردن یک سناریوی موفق کافی است، نیازی به بررسی بقیه حرکات حریف نیست
+            break; // Finding one successful scenario is enough, no need to check the rest of the opponent's moves
           }
         }
 
-        // اگر این حرکت در آینده شدنی است، آن را به لیست نهایی اضافه می‌کنیم
+        // If this move is achievable in the future, add it to the final list
         if (isPossibleInAnyScenario) {
           print('[AI-RESULT] Keeping target: $target');
           trulyPossibleMoves.add(target);
@@ -346,7 +346,7 @@ class PremoveIntelligence {
       }
     } catch (e) {
       print('[AI-FATAL-ERROR] AI Filter crashed: $e');
-      // در صورت کرش کردن هوش مصنوعی، برای جلوگیری از قفل شدن بازی، لیست خام هندسی را برمی‌گردانیم
+      // If the AI crashes, return the raw geometric list to prevent the game from locking up
       return pseudoLegalDestinations;
     }
 
