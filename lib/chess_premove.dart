@@ -13,6 +13,14 @@ class InvalidPremoveTurnException implements Exception {
   String toString() => 'InvalidPremoveTurnException: $message';
 }
 
+/// Custom exception thrown to prevent UI freeze on the Web due to rapid spam clicks (Throttling).
+class PremoveSpamException implements Exception {
+  final String message;
+  PremoveSpamException(this.message);
+  @override
+  String toString() => 'PremoveSpamException: $message';
+}
+
 /// Data holder class to pass arguments into the Isolate (as only primitive data types can be sent).
 class _PremoveIsolateData {
   final SendPort sendPort;
@@ -27,6 +35,9 @@ class _PremoveIsolateData {
 class PremoveIntelligence {
   // 🌟 Holds the reference to the active isolate for cancellation capabilities.
   static Isolate? _activeIsolate;
+
+  // 🌟 Stores the end time of the last web calculation to prevent event loop freezing (Throttling)
+  static int _lastWebCalculationEndTime = 0;
 
   /// The main asynchronous method called by the User Interface (UI).
   /// This method manages Isolates, cancels previous calculations, and prevents frame drops.
@@ -74,6 +85,16 @@ class PremoveIntelligence {
 
     // 🌟 2. Dedicated Web Handling (Isolates are not supported on Web)
     if (_kIsWeb) {
+      // 🌟 Check the time elapsed since the last calculation to prevent spamming queued clicks
+      int now = DateTime.now().millisecondsSinceEpoch;
+      if (now - _lastWebCalculationEndTime < 200) {
+        String errorMessage =
+            '⚠️ [WEB] Spam tap detected! Time since last calculation: ${now - _lastWebCalculationEndTime}ms (Threshold: 200ms). Aborting to prevent UI freeze.';
+        print(errorMessage);
+        // Throw an exception instead of returning an empty list so it isn't treated as a valid response
+        throw PremoveSpamException(errorMessage);
+      }
+
       print(
           '🌐 [WEB] Premove Calculation running on Main Thread (Isolates not supported on Web)');
       final stopwatch = Stopwatch()..start();
@@ -83,6 +104,8 @@ class PremoveIntelligence {
           _coreCalculate(currentFen, fromSquare, intelligence);
 
       stopwatch.stop();
+      // 🌟 Record the end time of this calculation
+      _lastWebCalculationEndTime = DateTime.now().millisecondsSinceEpoch;
       print('✅ [WEB] Result calculated in ${stopwatch.elapsedMilliseconds}ms.');
 
       return result;
