@@ -160,19 +160,19 @@ class PremoveIntelligence {
   static void _isolateEntryPoint(_PremoveIsolateData data) {
     try {
       print(
-          '⚙️ [BACKGROUND ISOLATE] Worker started heavy AI calculation for square: ${data.fromSquare}...');
+          '⚙️ [BACKGROUND ISOLATE] Worker started heavy simulation calculation for square: ${data.fromSquare}...');
       List<String> moves =
           _coreCalculate(data.fen, data.fromSquare, data.intelligence);
       print(
           '⚙️ [BACKGROUND ISOLATE] Calculation finished. Sending data back to Main Thread.');
       data.sendPort.send(moves);
     } catch (e) {
-      print('[AI-FATAL-ERROR] Inside Isolate: $e');
+      print('[ENGINE-FATAL-ERROR] Inside Isolate: $e');
       data.sendPort.send(<String>[]);
     }
   }
 
-  /// Core calculation engine (Includes geometric algorithm + probability AI)
+  /// Core calculation engine (Includes geometric algorithm + probability simulation)
   static List<String> _coreCalculate(
       String currentFen, String fromSquare, bool intelligence) {
     List<String> fenParts = currentFen.split(' ');
@@ -331,11 +331,11 @@ class PremoveIntelligence {
     String fromSquare,
     List<String> pseudoLegalDestinations,
   ) {
-    print('================= PREMOVE AI LOG =================');
-    print('[AI-START] Original FEN: $currentFen');
-    print('[AI-START] Moving piece from: $fromSquare');
+    print('================= PREMOVE ENGINE LOG =================');
+    print('[ENGINE-START] Original FEN: $currentFen');
+    print('[ENGINE-START] Moving piece from: $fromSquare');
     print(
-        '[AI-START] Initial candidate targets (Geometric): $pseudoLegalDestinations');
+        '[ENGINE-START] Initial candidate targets (Geometric): $pseudoLegalDestinations');
 
     // 🌟 OPTIMIZATION: Use a Set to prevent duplicates and a list to track unverified targets.
     Set<String> trulyPossibleMoves = {};
@@ -348,14 +348,14 @@ class PremoveIntelligence {
       // Extract all legal opponent moves at this moment
       List<String> opponentMoves = List<String>.from(baseBoard.moves());
       print(
-          '[AI-INFO] Total opponent moves possible in this turn: ${opponentMoves.length}');
+          '[ENGINE-INFO] Total opponent moves possible in this turn: ${opponentMoves.length}');
 
       // Main loop checking against all possible opponent moves
       for (String oppMove in opponentMoves) {
         // 🌟 SECONDARY OPTIMIZATION: If all geometric targets are validated, stop simulating!
         if (remainingTargets.isEmpty) {
           print(
-              '[AI-OPT] All targets validated early. Breaking out of simulation.');
+              '[ENGINE-OPT] All targets validated early. Breaking out of simulation.');
           break;
         }
 
@@ -395,7 +395,7 @@ class PremoveIntelligence {
           trulyPossibleMoves.add(validTarget);
           remainingTargets.remove(validTarget);
           print(
-              '[AI-MATCH] Target $validTarget IS POSSIBLE if opponent plays: $oppMove');
+              '[ENGINE-MATCH] Target $validTarget IS POSSIBLE if opponent plays: $oppMove');
         }
 
         // 4. 🌟 Undo the opponent's move to revert the board to its original state for the next opponent move loop
@@ -405,16 +405,16 @@ class PremoveIntelligence {
       // Log squares that were determined to be completely impossible
       for (String unachievable in remainingTargets) {
         print(
-            '[AI-RESULT] Filtering out target: $unachievable (NOT possible in any future)');
+            '[ENGINE-RESULT] Filtering out target: $unachievable (NOT possible in any future)');
       }
     } catch (e) {
-      print('[AI-FATAL-ERROR] AI Filter crashed: $e');
-      // If AI crashes, return raw geometric list to prevent game-lock
+      print('[ENGINE-FATAL-ERROR] Simulation Filter crashed: $e');
+      // If simulation crashes, return raw geometric list to prevent game-lock
       return pseudoLegalDestinations;
     }
 
     List<String> finalMoves = trulyPossibleMoves.toList();
-    print('[AI-END] Final approved targets: $finalMoves');
+    print('[ENGINE-END] Final approved targets: $finalMoves');
     print('==================================================');
     return finalMoves;
   }

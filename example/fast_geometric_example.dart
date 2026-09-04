@@ -19,7 +19,7 @@ void main() async {
   try {
     // 3. Ultra-fast geometric background calculation.
     //
-    // By setting 'intelligence: false', the heavy AI simulation engine is skipped entirely.
+    // By setting 'intelligence: false', the heavy simulation engine is skipped entirely.
     // The package will simply evaluate standard piece movement rules ignoring complex
     // future game states.
     //
@@ -34,12 +34,12 @@ void main() async {
         await PremoveIntelligence.calculatePremovesAsync(
       currentFen,
       tappedSquare,
-      intelligence: false, // Disables the strict simulation filter for maximum speed
+      intelligence:
+          false, // Disables the strict simulation filter for maximum speed
     );
 
     print('✅ Raw geometric destinations for $tappedSquare: $validPremoves');
     // Expected Output: [c6, d6, e6, d5]
-    
   } catch (e) {
     if (e is InvalidPremoveTurnException) {
       print(
