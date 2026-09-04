@@ -26,6 +26,30 @@ Instead of just returning basic geometric moves, the **Intelligent Filtering** s
 
 ---
 
+## ⚙️ The `intelligence` Parameter Explained
+
+The `intelligence` flag is the most powerful feature of this package, giving you complete control over the balance between logical accuracy and calculation speed.
+
+### 🟢 `intelligence: true` (Strict AI Simulation)
+When enabled, the engine doesn't just look at the board; it simulates **every single possible future move** your opponent could make. 
+
+**Example:** Look at the Black pawn on `d7` in the starting position. Geometrically, it can capture on `c6` or `e6`. However, in the very first turn, White cannot possibly make any move that places a piece on `c6` or `e6`. The intelligent filter realizes these captures are impossible scenarios in the upcoming turn and safely filters them out, leaving only the truly playable squares (`d6` and `d5`).
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Mohammadreza-Sobhani/chess_premove/main/doc/intelligence_true.png" alt="Intelligence True: Filtered Targets" width="600"/>
+</p>
+
+### 🟡 `intelligence: false` (Raw Geometric Speed)
+When disabled, the engine completely bypasses the heavy simulation. It simply returns all squares the piece could *geometrically* reach based on standard piece movement rules, without caring if the opponent's next move actually makes those squares legal. As seen below, it blindly returns all candidates: `c6`, `d6`, `e6`, and `d5`.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Mohammadreza-Sobhani/chess_premove/main/doc/intelligence_false.png" alt="Intelligence False: Raw Targets" width="600"/>
+</p>
+
+> ⚠️ **CRITICAL PERFORMANCE BOOST:** **If your application requires the absolute highest calculation speed, or if you are specifically developing for lower-end/weaker devices with limited CPU power, you MUST set `intelligence: false`. By doing so, the heavy simulation engine is completely skipped, and the geometric calculation returns instantly with zero latency!**
+
+---
+
 ## ✨ Features
 
 *   **Zero UI Blocking:** Heavy chess move calculations are offloaded to a background `Isolate` thread.
