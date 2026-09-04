@@ -1,6 +1,10 @@
 import 'dart:isolate'; // 🌟 Added for background processing
 import 'package:chess/chess.dart' as chess_lib;
 
+/// 🌟 Pure Dart way to check if running on the web (Without depending on Flutter framework)
+const bool _kIsWeb = bool.fromEnvironment('dart.library.js_interop') ||
+    bool.fromEnvironment('dart.library.html');
+
 /// Custom exception thrown when a user attempts to register a premove during their own turn.
 class InvalidPremoveTurnException implements Exception {
   final String message;
@@ -43,6 +47,7 @@ class PremoveIntelligence {
 
       String? movingPiece;
       int cIndex = 0;
+
       for (int i = 0; i < rows[fromR].length; i++) {
         String char = rows[fromR][i];
         if (int.tryParse(char) != null) {
@@ -67,7 +72,27 @@ class PremoveIntelligence {
       }
     }
 
-    // 2. Emergency Stop (Kill): If a previous calculation is still running, destroy it immediately!
+    // 🌟 2. Dedicated Web Handling (Isolates are not supported on Web)
+    if (_kIsWeb) {
+      print(
+          '🌐 [WEB] Premove Calculation running on Main Thread (Isolates not supported on Web)');
+      final stopwatch = Stopwatch()..start();
+
+      // Execute directly on the main thread (Lightweight enough to avoid severe frame drops due to new optimizations)
+      List<String> result =
+          _coreCalculate(currentFen, fromSquare, intelligence);
+
+      stopwatch.stop();
+      print('✅ [WEB] Result calculated in ${stopwatch.elapsedMilliseconds}ms.');
+
+      return result;
+    }
+
+    // ========================================================
+    // 🌟 FROM HERE ON: MOBILE & DESKTOP NATIVE ONLY
+    // ========================================================
+
+    // 3. Emergency Stop (Kill): If a previous calculation is still running, destroy it immediately!
     // This prevents CPU hogging and device slowdowns during rapid user clicks.
     if (_activeIsolate != null) {
       _activeIsolate!.kill(priority: Isolate.immediate);
@@ -76,10 +101,10 @@ class PremoveIntelligence {
           '🛑 [MAIN THREAD] ⚠️ ALERT: Rapid click detected! Killing previous Isolate to prevent Race Condition & free CPU.');
     }
 
-    // 3. Create communication port
+    // 4. Create communication port
     final receivePort = ReceivePort();
 
-    // 4. Spawn a new Isolate and send it to the background
+    // 5. Spawn a new Isolate and send it to the background
     try {
       print(
           '⚡ [MAIN THREAD] Offloading Premove calculation to Background Isolate...');
@@ -91,7 +116,7 @@ class PremoveIntelligence {
             receivePort.sendPort, currentFen, fromSquare, intelligence),
       );
 
-      // 5. Wait to receive the result from the Isolate
+      // Wait to receive the result from the Isolate
       final result = await receivePort.first as List<String>;
 
       stopwatch.stop();
@@ -170,9 +195,11 @@ class PremoveIntelligence {
             if (p == 'p') {
               int dir = isWaitingPlayerWhite ? -1 : 1;
               if (dc == 0) {
+                // FIXED: Wrapped statements inside braces
                 if (targetPiece == null && dr == dir) {
                   geometricValid = true;
                 }
+                // FIXED: Wrapped statements inside braces
                 if (targetPiece == null &&
                     dr == 2 * dir &&
                     fromR == (isWaitingPlayerWhite ? 6 : 1) &&
@@ -235,6 +262,7 @@ class PremoveIntelligence {
     int dc = toC - fromC;
     String p = piece.toLowerCase();
 
+    // FIXED: Wrapped all single-line conditionals inside braces
     if (p == 'k') {
       return dr.abs() <= 1 && dc.abs() <= 1;
     }
@@ -286,72 +314,85 @@ class PremoveIntelligence {
     print(
         '[AI-START] Initial candidate targets (Geometric): $pseudoLegalDestinations');
 
-    List<String> trulyPossibleMoves = [];
+    // 🌟 OPTIMIZATION: Use a Set to prevent duplicates and a list to track unverified targets.
+    Set<String> trulyPossibleMoves = {};
+    List<String> remainingTargets = List.from(pseudoLegalDestinations);
 
     try {
-      // Create a chess instance from the current state (It is the opponent's turn)
-      var chess = chess_lib.Chess.fromFEN(currentFen);
+      // 🌟 MAGIC OPTIMIZATION: Instantiate the board ONLY ONCE!
+      var baseBoard = chess_lib.Chess.fromFEN(currentFen);
 
-      // Extract all legal opponent moves at this moment as SAN strings (e.g., e4, Nf3)
-      // Using safe casting to List<String> to prevent unknown library errors
-      List<String> opponentMoves = List<String>.from(chess.moves());
+      // Extract all legal opponent moves at this moment
+      List<String> opponentMoves = List<String>.from(baseBoard.moves());
       print(
           '[AI-INFO] Total opponent moves possible in this turn: ${opponentMoves.length}');
 
-      // Evaluate each target square found by our geometric algorithm in the previous step
-      for (String target in pseudoLegalDestinations) {
-        bool isPossibleInAnyScenario = false;
+      // Main loop checking against all possible opponent moves
+      for (String oppMove in opponentMoves) {
+        // 🌟 SECONDARY OPTIMIZATION: If all geometric targets are validated, stop simulating!
+        if (remainingTargets.isEmpty) {
+          print(
+              '[AI-OPT] All targets validated early. Breaking out of simulation.');
+          break;
+        }
 
-        // For this target square, simulate all possible futures (opponent moves)
-        for (String oppMove in opponentMoves) {
-          // Create a virtual board to simulate the future so the original FEN remains intact
-          var simulationBoard = chess_lib.Chess.fromFEN(currentFen);
+        // 1. Opponent makes their move on the primary board instance
+        bool oppMoveSuccess = baseBoard.move(oppMove);
 
-          // 1. The opponent makes their move (Future simulation)
-          bool oppMoveSuccess = simulationBoard.move(oppMove);
-          if (!oppMoveSuccess) {
-            print('[AI-WARNING] Failed to simulate opponent move: $oppMove');
-            continue;
-          }
+        // FIXED: Wrapped statements inside braces
+        if (!oppMoveSuccess) {
+          continue;
+        }
 
-          // 2. Now it's our turn. Is our premove legal and possible in this new state?
+        List<String> validatedInThisScenario = [];
+
+        // 2. Now it's our turn. Are the remaining targets legal in this new state?
+        for (String target in remainingTargets) {
           bool isValidPremove = false;
           try {
-            isValidPremove = simulationBoard.move({
+            isValidPremove = baseBoard.move({
               'from': fromSquare,
               'to': target,
-              'promotion': 'q', // Default promotion for testing purposes
+              'promotion': 'q',
             });
           } catch (e) {
             isValidPremove = false;
           }
 
-          // If this premove is possible in even ONE opponent move, it means it's achievable!
           if (isValidPremove) {
-            isPossibleInAnyScenario = true;
-            print(
-                '[AI-MATCH] Target $target IS POSSIBLE if opponent plays: $oppMove');
-            break; // Finding one successful scenario is enough, no need to check the rest of the opponent's moves
+            // Move is valid! Record it.
+            validatedInThisScenario.add(target);
+            // 🌟 IMMEDIATELY undo our test move so the board is clean for the next target test in this scenario
+            baseBoard.undo();
           }
         }
 
-        // If this move is achievable in the future, add it to the final list
-        if (isPossibleInAnyScenario) {
-          print('[AI-RESULT] Keeping target: $target');
-          trulyPossibleMoves.add(target);
-        } else {
+        // 3. Add validated targets to final set and remove them from the waiting list
+        for (String validTarget in validatedInThisScenario) {
+          trulyPossibleMoves.add(validTarget);
+          remainingTargets.remove(validTarget);
           print(
-              '[AI-RESULT] Filtering out target: $target (NOT possible in any future)');
+              '[AI-MATCH] Target $validTarget IS POSSIBLE if opponent plays: $oppMove');
         }
+
+        // 4. 🌟 Undo the opponent's move to revert the board to its original state for the next opponent move loop
+        baseBoard.undo();
+      }
+
+      // Log squares that were determined to be completely impossible
+      for (String unachievable in remainingTargets) {
+        print(
+            '[AI-RESULT] Filtering out target: $unachievable (NOT possible in any future)');
       }
     } catch (e) {
       print('[AI-FATAL-ERROR] AI Filter crashed: $e');
-      // If the AI crashes, return the raw geometric list to prevent the game from locking up
+      // If AI crashes, return raw geometric list to prevent game-lock
       return pseudoLegalDestinations;
     }
 
-    print('[AI-END] Final approved targets: $trulyPossibleMoves');
+    List<String> finalMoves = trulyPossibleMoves.toList();
+    print('[AI-END] Final approved targets: $finalMoves');
     print('==================================================');
-    return trulyPossibleMoves;
+    return finalMoves;
   }
 }
