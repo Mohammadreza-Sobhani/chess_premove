@@ -18,6 +18,10 @@ dev_dependencies:
   # Standard linting rules for Dart
   lints: ^5.0.0
 
+screenshots:
+  - description: 'Calculated premove destination targets highlighted on the board'
+    path: doc/premove_logic_result.png
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
