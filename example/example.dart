@@ -1,44 +1,50 @@
 import 'package:chess_premove/chess_premove.dart';
 
 void main() async {
-  print('--- Chess Premove Intelligence Example ---');
+  print('--- Chess Premove Advanced Filtering Example ---');
 
-  // 1. Current game state (e.g., standard starting position).
-  // It is White's turn, so Black can validly register a premove.
+  // 1. Current game state (White's turn, FEN indicates a position where the Black Queen is active).
   String currentFen =
-      'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      'rnb1kbnr/ppp1pppp/8/3q4/8/8/PPPP1PPP/RNBQKBNR w KQkq - 0 3';
 
   // 2. The square the user tapped to register a premove.
-  // Example: The Black pawn at d7.
-  String tappedSquare = 'd7';
+  // We are selecting the Black Queen at d5.
+  String tappedSquare = 'd5';
 
   print('Current FEN: $currentFen');
-  print('Tapped Square: $tappedSquare');
-  print('Calculating premoves in background...\n');
+  print('Tapped Square: $tappedSquare (Black Queen)');
+  print('Calculating premoves in background with strict validation...\n');
 
   try {
-    // 3. Smart background calculation (Zero UI blocking).
+    // 3. Smart background calculation with Advanced Filtering.
     //
-    // For the black pawn at d7, the geometric engine initially suggests 4 pseudo-legal
-    // destinations: c6, d6, e6, and d5.
+    // For the black queen at d5, the core geometric engine initially suggests 25
+    // pseudo-legal candidate destinations:
+    // [d8, b7, d7, f7, c6, d6, e6, a5, b5, c5, e5, f5, g5, h5, c4, d4, e4, b3, d3, f3, a2, d2, g2, d1, h1]
     //
-    // Because 'intelligence: true' is passed, the AI simulates all of White's possible
-    // future moves. It realizes that the d7 pawn can never legally capture on c6 or e6
-    // in the very next turn (as White cannot place any piece on those squares in just one move).
-    // Therefore, the AI intelligently filters out c6 and e6, returning only the
-    // truly possible moves: [d6, d5].
+    // Because 'intelligence: true' is passed, the simulation engine checks all 29 possible
+    // future moves for White in this specific turn.
     //
-    // Note: If you set 'intelligence: false', the function will bypass the AI simulation
-    // and simply return all 4 geometric squares [c6, d6, e6, d5]. This is highly useful
-    // when you don't need strict logical validation and want to skip extra computations.
+    // After running the simulations, the engine determines that the Queen can NEVER
+    // legally reach the following 3 squares in the very next turn, regardless of what White plays:
+    // - b7
+    // - f7
+    // - d1
+    //
+    // Therefore, it intelligently filters out those 3 impossible targets,
+    // returning only the 22 truly possible moves.
     List<String> validPremoves =
         await PremoveIntelligence.calculatePremovesAsync(
       currentFen,
       tappedSquare,
-      intelligence: true,
+      intelligence: true, // Enabling the strict simulation filter
     );
 
-    print('✅ Valid premove destinations for $tappedSquare: $validPremoves');
+    print('✅ Final approved targets for $tappedSquare:');
+    print(validPremoves);
+
+    // Expected Output:
+    // [d8, d7, c6, d6, e6, a5, b5, c5, e5, f5, g5, h5, c4, d4, e4, b3, d3, f3, a2, d2, g2, h1]
   } catch (e) {
     if (e is InvalidPremoveTurnException) {
       print(
