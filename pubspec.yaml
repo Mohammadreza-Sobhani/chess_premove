@@ -1,6 +1,6 @@
 name: chess_premove
 description: A high-performance, asynchronous chess premove intelligence and validation package. Eliminates race conditions and UI freezing.
-version: 1.0.0
+version: 1.0.1
 repository: https://github.com/Mohammadreza-Sobhani/chess_premove
 homepage: https://github.com/Mohammadreza-Sobhani/chess_premove
 issue_tracker: https://github.com/Mohammadreza-Sobhani/chess_premove/issues
@@ -10,7 +10,7 @@ environment:
 
 dependencies:
   # The underlying chess logic engine
-  chess: ^0.8.1
+  chess: ">=0.7.0 <0.9.0"
 
 dev_dependencies:
   # Standard testing for pure Dart packages

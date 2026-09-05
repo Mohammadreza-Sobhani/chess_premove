@@ -64,7 +64,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  chess_premove: ^1.0.0
+  chess_premove: ^1.0.1
 ```
 
 Then, run:

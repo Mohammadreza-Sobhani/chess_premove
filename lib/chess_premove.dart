@@ -29,7 +29,11 @@ class _PremoveIsolateData {
   final bool intelligence;
 
   _PremoveIsolateData(
-      this.sendPort, this.fen, this.fromSquare, this.intelligence);
+    this.sendPort,
+    this.fen,
+    this.fromSquare,
+    this.intelligence,
+  );
 }
 
 class PremoveIntelligence {
@@ -79,7 +83,8 @@ class PremoveIntelligence {
       bool isWhitePiece = movingPiece == movingPiece.toUpperCase();
       if ((isWhitePiece && turn == 'w') || (!isWhitePiece && turn == 'b')) {
         throw InvalidPremoveTurnException(
-            'It is currently your turn. Premoves can only be registered during the opponent\'s turn.');
+          'It is currently your turn. Premoves can only be registered during the opponent\'s turn.',
+        );
       }
     }
 
@@ -96,12 +101,16 @@ class PremoveIntelligence {
       }
 
       print(
-          '🌐 [WEB] Premove Calculation running on Main Thread (Isolates not supported on Web)');
+        '🌐 [WEB] Premove Calculation running on Main Thread (Isolates not supported on Web)',
+      );
       final stopwatch = Stopwatch()..start();
 
       // Execute directly on the main thread (Lightweight enough to avoid severe frame drops due to new optimizations)
-      List<String> result =
-          _coreCalculate(currentFen, fromSquare, intelligence);
+      List<String> result = _coreCalculate(
+        currentFen,
+        fromSquare,
+        intelligence,
+      );
 
       stopwatch.stop();
       // 🌟 Record the end time of this calculation
@@ -121,7 +130,8 @@ class PremoveIntelligence {
       _activeIsolate!.kill(priority: Isolate.immediate);
       _activeIsolate = null;
       print(
-          '🛑 [MAIN THREAD] ⚠️ ALERT: Rapid click detected! Killing previous Isolate to prevent Race Condition & free CPU.');
+        '🛑 [MAIN THREAD] ⚠️ ALERT: Rapid click detected! Killing previous Isolate to prevent Race Condition & free CPU.',
+      );
     }
 
     // 4. Create communication port
@@ -130,13 +140,18 @@ class PremoveIntelligence {
     // 5. Spawn a new Isolate and send it to the background
     try {
       print(
-          '⚡ [MAIN THREAD] Offloading Premove calculation to Background Isolate...');
+        '⚡ [MAIN THREAD] Offloading Premove calculation to Background Isolate...',
+      );
       final stopwatch = Stopwatch()..start();
 
       _activeIsolate = await Isolate.spawn(
         _isolateEntryPoint,
         _PremoveIsolateData(
-            receivePort.sendPort, currentFen, fromSquare, intelligence),
+          receivePort.sendPort,
+          currentFen,
+          fromSquare,
+          intelligence,
+        ),
       );
 
       // Wait to receive the result from the Isolate
@@ -144,7 +159,8 @@ class PremoveIntelligence {
 
       stopwatch.stop();
       print(
-          '✅ [MAIN THREAD] Received result from Isolate in ${stopwatch.elapsedMilliseconds}ms. Main UI remained 100% unblocked!');
+        '✅ [MAIN THREAD] Received result from Isolate in ${stopwatch.elapsedMilliseconds}ms. Main UI remained 100% unblocked!',
+      );
 
       return result;
     } finally {
@@ -152,7 +168,8 @@ class PremoveIntelligence {
       _activeIsolate = null;
       receivePort.close();
       print(
-          '🧹 [MAIN THREAD] Isolate communication port closed & resources freed.');
+        '🧹 [MAIN THREAD] Isolate communication port closed & resources freed.',
+      );
     }
   }
 
@@ -160,11 +177,16 @@ class PremoveIntelligence {
   static void _isolateEntryPoint(_PremoveIsolateData data) {
     try {
       print(
-          '⚙️ [BACKGROUND ISOLATE] Worker started heavy simulation calculation for square: ${data.fromSquare}...');
-      List<String> moves =
-          _coreCalculate(data.fen, data.fromSquare, data.intelligence);
+        '⚙️ [BACKGROUND ISOLATE] Worker started heavy simulation calculation for square: ${data.fromSquare}...',
+      );
+      List<String> moves = _coreCalculate(
+        data.fen,
+        data.fromSquare,
+        data.intelligence,
+      );
       print(
-          '⚙️ [BACKGROUND ISOLATE] Calculation finished. Sending data back to Main Thread.');
+        '⚙️ [BACKGROUND ISOLATE] Calculation finished. Sending data back to Main Thread.',
+      );
       data.sendPort.send(moves);
     } catch (e) {
       print('[ENGINE-FATAL-ERROR] Inside Isolate: $e');
@@ -174,7 +196,10 @@ class PremoveIntelligence {
 
   /// Core calculation engine (Includes geometric algorithm + probability simulation)
   static List<String> _coreCalculate(
-      String currentFen, String fromSquare, bool intelligence) {
+    String currentFen,
+    String fromSquare,
+    bool intelligence,
+  ) {
     List<String> fenParts = currentFen.split(' ');
     String fenBoard = fenParts[0];
 
@@ -200,8 +225,11 @@ class PremoveIntelligence {
 
         bool isValid = false;
         try {
-          isValid = tempChess
-              .move({'from': fromSquare, 'to': targetSquare, 'promotion': 'q'});
+          isValid = tempChess.move({
+            'from': fromSquare,
+            'to': targetSquare,
+            'promotion': 'q',
+          });
         } catch (_) {}
 
         if (isValid) {
@@ -234,7 +262,14 @@ class PremoveIntelligence {
               }
             } else {
               geometricValid = _isPseudoLegal(
-                  fromR, fromC, r, c, movingPiece, isWaitingPlayerWhite, board);
+                fromR,
+                fromC,
+                r,
+                c,
+                movingPiece,
+                isWaitingPlayerWhite,
+                board,
+              );
             }
 
             if (geometricValid) {
@@ -249,7 +284,10 @@ class PremoveIntelligence {
 
     if (intelligence) {
       return filterPossiblePremoves(
-          currentFen, fromSquare, pseudoLegalDestinations);
+        currentFen,
+        fromSquare,
+        pseudoLegalDestinations,
+      );
     } else {
       return pseudoLegalDestinations;
     }
@@ -279,8 +317,15 @@ class PremoveIntelligence {
     return '$file$rank';
   }
 
-  static bool _isPseudoLegal(int fromR, int fromC, int toR, int toC,
-      String piece, bool isWhitePlayer, List<List<String?>> board) {
+  static bool _isPseudoLegal(
+    int fromR,
+    int fromC,
+    int toR,
+    int toC,
+    String piece,
+    bool isWhitePlayer,
+    List<List<String?>> board,
+  ) {
     int dr = toR - fromR;
     int dc = toC - fromC;
     String p = piece.toLowerCase();
@@ -335,7 +380,8 @@ class PremoveIntelligence {
     print('[ENGINE-START] Original FEN: $currentFen');
     print('[ENGINE-START] Moving piece from: $fromSquare');
     print(
-        '[ENGINE-START] Initial candidate targets (Geometric): $pseudoLegalDestinations');
+      '[ENGINE-START] Initial candidate targets (Geometric): $pseudoLegalDestinations',
+    );
 
     // 🌟 OPTIMIZATION: Use a Set to prevent duplicates and a list to track unverified targets.
     Set<String> trulyPossibleMoves = {};
@@ -348,14 +394,16 @@ class PremoveIntelligence {
       // Extract all legal opponent moves at this moment
       List<String> opponentMoves = List<String>.from(baseBoard.moves());
       print(
-          '[ENGINE-INFO] Total opponent moves possible in this turn: ${opponentMoves.length}');
+        '[ENGINE-INFO] Total opponent moves possible in this turn: ${opponentMoves.length}',
+      );
 
       // Main loop checking against all possible opponent moves
       for (String oppMove in opponentMoves) {
         // 🌟 SECONDARY OPTIMIZATION: If all geometric targets are validated, stop simulating!
         if (remainingTargets.isEmpty) {
           print(
-              '[ENGINE-OPT] All targets validated early. Breaking out of simulation.');
+            '[ENGINE-OPT] All targets validated early. Breaking out of simulation.',
+          );
           break;
         }
 
@@ -395,7 +443,8 @@ class PremoveIntelligence {
           trulyPossibleMoves.add(validTarget);
           remainingTargets.remove(validTarget);
           print(
-              '[ENGINE-MATCH] Target $validTarget IS POSSIBLE if opponent plays: $oppMove');
+            '[ENGINE-MATCH] Target $validTarget IS POSSIBLE if opponent plays: $oppMove',
+          );
         }
 
         // 4. 🌟 Undo the opponent's move to revert the board to its original state for the next opponent move loop
@@ -405,7 +454,8 @@ class PremoveIntelligence {
       // Log squares that were determined to be completely impossible
       for (String unachievable in remainingTargets) {
         print(
-            '[ENGINE-RESULT] Filtering out target: $unachievable (NOT possible in any future)');
+          '[ENGINE-RESULT] Filtering out target: $unachievable (NOT possible in any future)',
+        );
       }
     } catch (e) {
       print('[ENGINE-FATAL-ERROR] Simulation Filter crashed: $e');

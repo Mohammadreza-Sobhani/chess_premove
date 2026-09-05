@@ -48,7 +48,8 @@ void main() async {
   } catch (e) {
     if (e is InvalidPremoveTurnException) {
       print(
-          '❌ Error: It is currently your turn! Premoves can only be registered during the opponent\'s turn.');
+        '❌ Error: It is currently your turn! Premoves can only be registered during the opponent\'s turn.',
+      );
     } else {
       print('❌ Unexpected Error: $e');
     }
