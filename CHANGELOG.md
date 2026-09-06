@@ -1,3 +1,8 @@
+## 1.0.2
+
+* Added dedicated En Passant premove use-case example and visual demo in README.
+* Updated documentation with special move handling details.
+
 ## 1.0.1
 
 * Relaxed `chess` dependency constraints to `>=0.7.0 <0.9.0` to resolve version conflicts with other packages (like `flutter_chess_board`).
