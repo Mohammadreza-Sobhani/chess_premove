@@ -48,15 +48,24 @@ When disabled, the engine completely bypasses the heavy simulation. It simply re
 
 > ⚠️ **CRITICAL PERFORMANCE BOOST:** **If your application requires the absolute highest calculation speed, or if you are specifically developing for lower-end/weaker devices with limited CPU power, you MUST set `intelligence: false`. By doing so, the heavy simulation engine is completely skipped, and the geometric calculation returns instantly with zero latency!**
 
+### 🪄 Special Moves Support (En Passant, Castling, etc.)
+The package fully supports all special chess rules seamlessly. Because the engine simulates actual future board states, complex mechanics like **En Passant** and Castling are calculated accurately out of the box.
+
+**En Passant Example:** Imagine a White pawn on `g5` and it is Black's turn. The geometric candidate destinations for this pawn are `[f6, g6, h6]`. When our smart filter (`intelligence: true`) kicks in, it completely removes `f6` because Black cannot possibly play a move that allows a capture on `f6`. However, it **keeps** `h6`! Why? Because the engine realizes Black *might* play `h7h5` in their current turn, which would legally allow White to perform an En Passant capture on `h6`. Therefore, the final validated output correctly remains `[g6, h6]`.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Mohammadreza-Sobhani/chess_premove/main/doc/en_passant_example.gif" alt="En Passant Premove Example" width="600"/>
+</p>
+
 ---
 
 ## ✨ Features
 
-*   **Zero UI Blocking:** Heavy chess move calculations are offloaded to a background `Isolate` thread.
-*   **Smart Cancellation:** If a user clicks multiple pieces rapidly, previous calculations are instantly killed (`isolate.kill()`) to save RAM and CPU.
-*   **Smart Web Support:** Seamlessly falls back to optimized main-thread execution on the Web (where Isolates are unsupported) with built-in anti-spam throttling.
-*   **100% Pure Dart:** No dependencies on the Flutter framework. Works perfectly on Mobile, Web, Desktop, and Server/Backend.
-*   **Intelligent Filtering:** Doesn't just find geometric moves; it simulates the opponent's possible future moves to ensure the premove is actually legal in at least one scenario.
+* **Zero UI Blocking:** Heavy chess move calculations are offloaded to a background `Isolate` thread.
+* **Smart Cancellation:** If a user clicks multiple pieces rapidly, previous calculations are instantly killed (`isolate.kill()`) to save RAM and CPU.
+* **Smart Web Support:** Seamlessly falls back to optimized main-thread execution on the Web (where Isolates are unsupported) with built-in anti-spam throttling.
+* **100% Pure Dart:** No dependencies on the Flutter framework. Works perfectly on Mobile, Web, Desktop, and Server/Backend.
+* **Intelligent Filtering:** Doesn't just find geometric moves; it simulates the opponent's possible future moves to ensure the premove is actually legal in at least one scenario.
 
 ## 📦 Installation
 
@@ -64,7 +73,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  chess_premove: ^1.0.1
+  chess_premove: ^1.0.2
 ```
 
 Then, run:
